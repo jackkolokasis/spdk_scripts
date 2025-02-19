@@ -15,11 +15,11 @@ check_status() {
 
 # Allocate 100 GB of 2 MB hugepages on NUMA node 0 and 100 GB on NUMA node 1, ensuring
 # each socket gets its own local hugepage pool for optimal performance on a dual-socket system.
-./dpdk/usertools/dpdk-hugepages.py -p 2M --setup 100G --node 0
-check_status $? "Hugepages setup numa node 0"
+./dpdk/usertools/dpdk-hugepages.py -p 2M --setup 100G
+check_status $? "Hugepages setup"
 
-./dpdk/usertools/dpdk-hugepages.py -p 2M --setup 100G --node 1
-check_status $? "Hugepages setup numa node 1"
+# ./dpdk/usertools/dpdk-hugepages.py -p 2M --setup 100G --node 1
+# check_status $? "Hugepages setup numa node 1"
 
 HUGEMEM=204800 HUGE_EVEN_ALLOC=yes ./scripts/setup.sh
 check_status $? "Setup"
@@ -33,16 +33,13 @@ check_status $? "Launch the SPDK NVMe-oF target in the background"
 sleep 4
 
 # Desired device size in GiB
-SIZE_GIB=200
+SIZE_GIB=50
 # Block size in bytes
-BLOCK_SIZE=512
+BLOCK_SIZE=4096
 # Convert GiB to bytes: (200 GiB = 200 * 2^30 bytes)
-SIZE_BYTES=$(( SIZE_GIB * 1024 * 1024 * 1024 ))
-# Calculate the total number of 512-byte blocks to reach the desired size
-BLOCK_COUNT=$(( SIZE_BYTES / BLOCK_SIZE ))
+SIZE_MBYTES=$(( SIZE_GIB * 1024 ))
 
-echo "Creating a $SIZE_GIB GiB malloc bdev using $BLOCK_COUNT blocks of size $BLOCK_SIZE bytes each."
-./scripts/rpc.py bdev_malloc_create -b Malloc0 "$BLOCK_COUNT" "$BLOCK_SIZE"
+./scripts/rpc.py bdev_malloc_create -b Malloc0 "$SIZE_MBYTES" "$BLOCK_SIZE"
 check_status $? "Malloc ramdisk"
 
 # Create RDMA transport
@@ -65,5 +62,5 @@ check_status $? "Allow any host to connect"
 
 # Add a new listener (portal) to the NVMe-oF subsystem "nqn.2016-06.io.spdk:cnode1" using the RDMA transport (-t rdma),
 # listening on IP address 192.168.5.126 (-a) and port 4420 (-s).
-./scripts/rpc.py nvmf_subsystem_add_listener nqn.2016-06.io.spdk:cnode1 -t rdma -a 192.168.5.125 -s 4420
+./scripts/rpc.py nvmf_subsystem_add_listener nqn.2016-06.io.spdk:cnode1 -t rdma -a 192.168.5.121 -s 4420
 check_status $? "Add a new listener (portal) to the NVMe-oF subsystem"
